@@ -31,31 +31,25 @@ class MonitorView(BaseView):
         spider_filter = f"spider = '{self.spider}'"
         df = []
 
-        if re.findall(r'sqlite', DATABASE_URL):
+        if re.findall(r"sqlite", DATABASE_URL):
             try:
-                df = mtd.sql_to_df(
-                    con=mtd.sqlite_connector(),
-                    where=spider_filter
-                )  # Get data
+                con = mtd.sqlite_connector()
+
+                df = mtd.sql_to_df(con=con, where=spider_filter)  # Get data
             except OperationalError as err:
                 self.logger(err)
-        elif re.findall('mysql', DATABASE_URL):
+        elif re.findall("mysql", DATABASE_URL):
             try:
-                df = mtd.sql_to_df(
-                    con=mtd.mysql_connector(),
-                    where=spider_filter)
-            except ConnectionError:
-                self.logger("MySQL server connection failed!")
+                con = mtd.mysql_connector()
+                df = mtd.sql_to_df(con=con, where=spider_filter)
+            except ConnectionError or AttributeError as err:
+                self.logger("MySQL server connection failed!\n\t", err)
         else:
-            self.logger('Connection type not handled yet...')
+            self.logger("Connection type not handled yet...")
             return
 
-        df = mtm.compute_floating_means(
-            df, "items"
-        )  # Compute floating mean for items
-        df = mtm.compute_floating_means(
-            df, "pages"
-        )  # Compute floating mean for pages
+        df = mtm.compute_floating_means(df, "items")  # Compute floating mean for items
+        df = mtm.compute_floating_means(df, "pages")  # Compute floating mean for pages
         fig = mtg.scraping_graph(dataframe=df, days=30)  # Plot data
         html_fig = fig.to_html()  # Convert plot figure to html
 
