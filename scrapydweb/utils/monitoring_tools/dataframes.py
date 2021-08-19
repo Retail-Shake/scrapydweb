@@ -6,8 +6,8 @@ from . import maths as mtm
 
 
 def mysql_connector(
+    url="mysql://root:MySQL.R3t41lSh4k3x040121@127.0.0.1:3306",
     database="scrapydweb_jobs",
-
 ):
     """
     This function is used to get a connector to the scrapyd MySQL DB.
@@ -24,9 +24,10 @@ def mysql_connector(
 
     # | code section |
     # db connect
-    url = DATABASE_URL
-    user, password = re.findall(r'(?<=//)(.*?)(?=@)', url)[0].split(':')
-    host, port = re.findall(r'(?<=@)(.*?)$', url)[0].split(':')
+    # user, password = re.findall(r"(?<=//)(.*?)(?=@)", DATABASE_URL)[0].split(":")
+    # host, port = re.findall(r"(?<=@)(.*?)$", DATABASE_URL)[0].split(":")
+    user, password = re.findall(r"(?<=//)(.*?)(?=@)", url)[0].split(":")
+    host, port = re.findall(r"(?<=@)(.*?)$", url)[0].split(":")
 
     con = None
 
@@ -37,6 +38,7 @@ def mysql_connector(
             database=database,
             user=user,
             password=password,
+            auth_plugin="mysql_native_password",
         )
     except mysql.connector.Error as err:
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
@@ -44,7 +46,7 @@ def mysql_connector(
         elif err.errno == errorcode.ER_BAD_DB_ERROR:
             print("Database does not exist")
         else:
-            print(err)
+            print("Oops, something goes wrong:\n\t", err)
 
     return con
 
@@ -79,11 +81,7 @@ def sqlite_connector(
 
 # TODO #2 @h4r1c0t: multinode request -> get the current node and the corresponding server.
 def sql_to_df(
-        con,
-        node=None,
-        select='*',
-        table='127_0_0_1_6800',
-        where='project = retail_shake'
+    con, node=None, select="*", table="127_0_0_1_6800", where="project = retail_shake"
 ):
     """
     This function is used to automatically get data from scrapyd DB as a Pandas dataframe.
