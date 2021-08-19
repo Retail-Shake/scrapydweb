@@ -1,4 +1,6 @@
 # coding: utf-8
+import os
+import re
 from os.path import dirname
 from flask import render_template, url_for
 from ...utils.monitoring_tools import dataframes as mtd
@@ -23,52 +25,64 @@ class MonitorView(BaseView):
         self.template = "scrapydweb/monitoring.html"
 
     def dispatch_request(self, **kwargs):
+        from sqlite3 import OperationalError
+
         spider_filter = f"spider = '{self.spider}'"
         df = None
-        try:
-            df = mtd.sqlite_to_df(where=spider_filter)  # Get data
-        except ConnectionError:
+
+        database_url = os.environ['database_url']
+        db_type = re.findall(r'', database_url)
+
+        if db_type == 'sqlite':
+            try:
+                df = mtd.sqlite_to_df(where=spider_filter)  # Get data
+            except OperationalError as err:
+                self.logger(err)
+        elif db_type == 'mysql':
             try:
                 df = mtd.mysql_to_df(where=spider_filter)
             except ConnectionError:
-                self.logger("DB connection failed!")
-        if df:
-            df = mtm.compute_floating_means(
-                df, "items"
-            )  # Compute floating mean for items
-            df = mtm.compute_floating_means(
-                df, "pages"
-            )  # Compute floating mean for pages
-            fig = mtg.scraping_graph(dataframe=df, days=30)  # Plot data
-            html_fig = fig.to_html()  # Convert plot figure to html
+                self.logger("MySQL server connection failed!")
+        else:
+            self.logger('Connection type not handled yet...')
+            return
 
-            # fig = mtg.mini_scrap_graph(df)  # Plot minimalist graph
-            # fig.write_image(self.image_path + self.spider + ".png")
+        df = mtm.compute_floating_means(
+            df, "items"
+        )  # Compute floating mean for items
+        df = mtm.compute_floating_means(
+            df, "pages"
+        )  # Compute floating mean for pages
+        fig = mtg.scraping_graph(dataframe=df, days=30)  # Plot data
+        html_fig = fig.to_html()  # Convert plot figure to html
 
-            last_job = df[df["start"] == df["start"].max()]
-            self.log_url = (
-                "http://127.0.0.1:5000/"
-                + str(self.node)
-                + "/log/utf8/"
-                + str(last_job.project.values[0])
-                + "/"
-                + str(last_job.spider.values[0])
-                + "/"
-                + str(last_job.job.values[0])
-                + "/?job_finished=True"
-            )
-            print("\n\n##########\n", self.log_url, "\n##########\n\n")
-            # png_fig = fig.to_image("png")
-            github_link = self.github_issue_generator()
+        # fig = mtg.mini_scrap_graph(df)  # Plot minimalist graph
+        # fig.write_image(self.image_path + self.spider + ".png")
 
-            kwargs = dict(
-                node=self.node,
-                url=self.url,
-                graphHTML=html_fig,
-                spider=self.spider,
-                github_link=github_link,
-                log_url=self.log_url,
-            )
+        last_job = df[df["start"] == df["start"].max()]
+        self.log_url = (
+            "http://127.0.0.1:5000/"
+            + str(self.node)
+            + "/log/utf8/"
+            + str(last_job.project.values[0])
+            + "/"
+            + str(last_job.spider.values[0])
+            + "/"
+            + str(last_job.job.values[0])
+            + "/?job_finished=True"
+        )
+        print("\n\n##########\n", self.log_url, "\n##########\n\n")
+        # png_fig = fig.to_image("png")
+        github_link = self.github_issue_generator()
+
+        kwargs = dict(
+            node=self.node,
+            url=self.url,
+            graphHTML=html_fig,
+            spider=self.spider,
+            github_link=github_link,
+            log_url=self.log_url,
+        )
         return render_template(self.template, **kwargs)
 
     def github_issue_generator(self):
