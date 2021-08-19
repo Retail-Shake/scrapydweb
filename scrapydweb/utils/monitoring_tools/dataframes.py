@@ -26,13 +26,13 @@ def mysql_connector(
     # db connect
     url = DATABASE_URL
     user, password = re.findall(r'(?<=//)(.*?)(?=@)', url)[0].split(':')
-    hostname, port = re.findall(r'(?<=@)(.*?)$', url)[0].split(':')
+    host, port = re.findall(r'(?<=@)(.*?)$', url)[0].split(':')
 
     con = None
 
     try:
         con = connect(
-            hostname=hostname,
+            host=host,
             port=port,
             database=database,
             user=user,
