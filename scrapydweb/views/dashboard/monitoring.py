@@ -35,7 +35,9 @@ class MonitorView(BaseView):
             try:
                 con = mtd.sqlite_connector()
 
-                df = mtd.sql_to_df(con=con, where=spider_filter)  # Get data
+                df = mtd.sql_to_df(
+                    con=con, table="'127_0_0_1_6800'", where=spider_filter
+                )  # Get data
             except OperationalError as err:
                 self.logger(err)
         elif re.findall("mysql", DATABASE_URL):

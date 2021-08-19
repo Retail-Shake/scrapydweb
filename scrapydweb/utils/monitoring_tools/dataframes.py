@@ -86,7 +86,7 @@ def sql_to_df(
     """
     This function is used to automatically get data from scrapyd DB as a Pandas dataframe.
 
-    :param con:
+    :param con:     (sql connector) the connector for the scrapydweb DB
     :param table:   (str) table name (default: 127.0.0.1:6800, the default server)
     :param select:  (str) column to select (default: * all the columns)
     :param where:   (str) where condition for the select  (default: spider from 'retail_shake' project)
@@ -99,8 +99,8 @@ def sql_to_df(
     df = pd.read_sql(
         f"""
         SELECT {select}
-        FROM '{table}'
-        WHERE {where}
+        FROM {table}
+        WHERE {where};
         """,
         con,
     )
