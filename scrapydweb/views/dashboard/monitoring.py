@@ -3,6 +3,7 @@ import os
 import re
 from os.path import dirname
 from flask import render_template, url_for
+from ...vars import DATABASE_URL
 from ...utils.monitoring_tools import dataframes as mtd
 from ...utils.monitoring_tools import maths as mtm
 from ...utils.monitoring_tools import graphs as mtg
@@ -28,19 +29,21 @@ class MonitorView(BaseView):
         from sqlite3 import OperationalError
 
         spider_filter = f"spider = '{self.spider}'"
-        df = None
+        df = []
 
-        database_url = os.environ['database_url']
-        db_type = re.findall(r'', database_url)
-
-        if db_type == 'sqlite':
+        if re.findall(r'sqlite', DATABASE_URL):
             try:
-                df = mtd.sqlite_to_df(where=spider_filter)  # Get data
+                df = mtd.sql_to_df(
+                    con=mtd.sqlite_connector(),
+                    where=spider_filter
+                )  # Get data
             except OperationalError as err:
                 self.logger(err)
-        elif db_type == 'mysql':
+        elif re.findall('mysql', DATABASE_URL):
             try:
-                df = mtd.mysql_to_df(where=spider_filter)
+                df = mtd.sql_to_df(
+                    con=mtd.mysql_connector(),
+                    where=spider_filter)
             except ConnectionError:
                 self.logger("MySQL server connection failed!")
         else:
