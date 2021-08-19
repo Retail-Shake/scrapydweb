@@ -24,40 +24,51 @@ class MonitorView(BaseView):
 
     def dispatch_request(self, **kwargs):
         spider_filter = f"spider = '{self.spider}'"
+        df = None
+        try:
+            df = mtd.sqlite_to_df(where=spider_filter)  # Get data
+        except ConnectionError:
+            try:
+                df = mtd.mysql_to_df(where=spider_filter)
+            except ConnectionError:
+                self.logger("DB connection failed!")
+        if df:
+            df = mtm.compute_floating_means(
+                df, "items"
+            )  # Compute floating mean for items
+            df = mtm.compute_floating_means(
+                df, "pages"
+            )  # Compute floating mean for pages
+            fig = mtg.scraping_graph(dataframe=df, days=30)  # Plot data
+            html_fig = fig.to_html()  # Convert plot figure to html
 
-        df = mtd.sqlite_to_df(where=spider_filter)  # Get data
-        df = mtm.compute_floating_means(df, "items")  # Compute floating mean for items
-        df = mtm.compute_floating_means(df, "pages")  # Compute floating mean for pages
-        fig = mtg.scraping_graph(dataframe=df, days=30)  # Plot data
-        html_fig = fig.to_html()  # Convert plot figure to html
+            # fig = mtg.mini_scrap_graph(df)  # Plot minimalist graph
+            # fig.write_image(self.image_path + self.spider + ".png")
 
-        # fig = mtg.mini_scrap_graph(df)  # Plot minimalist graph
-        # fig.write_image(self.image_path + self.spider + ".png")
+            last_job = df[df["start"] == df["start"].max()]
+            self.log_url = (
+                "http://127.0.0.1:5000/"
+                + str(self.node)
+                + "/log/utf8/"
+                + str(last_job.project.values[0])
+                + "/"
+                + str(last_job.spider.values[0])
+                + "/"
+                + str(last_job.job.values[0])
+                + "/?job_finished=True"
+            )
+            print("\n\n##########\n", self.log_url, "\n##########\n\n")
+            # png_fig = fig.to_image("png")
+            github_link = self.github_issue_generator()
 
-        last_job = df[df["start"] == df["start"].max()]
-        self.log_url = (
-            "http://127.0.0.1:5000/"
-            + str(self.node)
-            + "/log/utf8/"
-            + str(last_job.project.values[0])
-            + "/"
-            + str(last_job.spider.values[0])
-            + "/"
-            + str(last_job.job.values[0])
-            + "/?job_finished=True"
-        )
-        print("\n\n##########\n", self.log_url, "\n##########\n\n")
-        # png_fig = fig.to_image("png")
-        github_link = self.github_issue_generator()
-
-        kwargs = dict(
-            node=self.node,
-            url=self.url,
-            graphHTML=html_fig,
-            spider=self.spider,
-            github_link=github_link,
-            log_url=self.log_url,
-        )
+            kwargs = dict(
+                node=self.node,
+                url=self.url,
+                graphHTML=html_fig,
+                spider=self.spider,
+                github_link=github_link,
+                log_url=self.log_url,
+            )
         return render_template(self.template, **kwargs)
 
     def github_issue_generator(self):

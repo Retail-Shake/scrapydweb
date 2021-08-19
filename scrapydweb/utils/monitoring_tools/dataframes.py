@@ -1,9 +1,60 @@
 # -*- coding: utf-8 -*-
+import logging
+import os
+
 from . import maths as mtm
 
 
-# TODO @h4r1c0t: multinode request
-# TODO @h4r1c0t: what about mysql db server?
+def mysql_to_df(
+    url=None,  # TODO #1 @h4r1c0t: find how to setup the connection params automatically from settings.
+    database="scrapydweb_jobs",
+    table="128_0_0_1_6800",
+    select="*",
+    where="project = 'retail_shake'",
+):
+    """
+    This function is used to automatically get data from scrapyd SQLite DB.
+    By default get spyder data from 127.0.0.1:6800 table of the jobs.db
+
+    :param url:      (str) MySQL server connection url
+    :param database: (str) the database to select
+    :param table:    (str) table name (default: 127.0.0.1:6800, the default server)
+    :param select:   (str) column to select (default: * all the columns)
+    :param where:    (str) where condition for the select  (default: spider from 'retail_shake' project)
+    :return:         (df)  query output as a pandas DataFrame
+    """
+    import re
+    import mysql.connector
+    from mysql.connector import connect, errorcode
+
+    if not url:
+        try:
+            url = os.environ['DATABASE_URL']
+            user, password = re.findall(r'(?<=//)(.*?)(?=@)', url)[0].split(':')
+            hostname, port = re.findall(r'(?<=@)(.*?)$', url)[0].split(':')
+
+            try:
+                connect(
+                    hostname=hostname,
+                    port=port,
+                    database=database,
+                    user=user,
+                    password=password,
+                )
+            except mysql.connector.Error as err:
+                if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                    print("Something is wrong with your user name or password")
+                elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                    print("Database does not exist")
+                else:
+                    print(err)
+
+        except KeyError:
+            logging.Logger('DB url not found in environment variable!')
+
+# TODO #2 @h4r1c0t: multinode request -> get the current node and the corresponding server.
+
+
 def sqlite_to_df(
     path=None,
     database="jobs.db",
