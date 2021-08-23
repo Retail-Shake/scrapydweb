@@ -1,5 +1,4 @@
 # coding: utf-8
-import os
 import re
 from os.path import dirname
 from flask import render_template, url_for
@@ -30,20 +29,20 @@ class MonitorView(BaseView):
 
         spider_filter = f"spider = '{self.spider}'"
         df = []
-
+        table_name = self.SCRAPYD_SERVER.replace(".", "_").replace(":", "_")
         if re.findall(r"sqlite", DATABASE_URL):
             try:
                 con = mtd.sqlite_connector()
 
                 df = mtd.sql_to_df(
-                    con=con, table="'127_0_0_1_6800'", where=spider_filter
+                    con=con, table=f"'{table_name}'", where=spider_filter
                 )  # Get data
             except OperationalError as err:
                 self.logger(err)
         elif re.findall("mysql", DATABASE_URL):
             try:
                 con = mtd.mysql_connector()
-                df = mtd.sql_to_df(con=con, where=spider_filter)
+                df = mtd.sql_to_df(con=con, table=table_name, where=spider_filter)
             except ConnectionError or AttributeError as err:
                 self.logger("MySQL server connection failed!\n\t", err)
         else:
@@ -70,7 +69,6 @@ class MonitorView(BaseView):
             + str(last_job.job.values[0])
             + "/?job_finished=True"
         )
-        print("\n\n##########\n", self.log_url, "\n##########\n\n")
         # png_fig = fig.to_image("png")
         github_link = self.github_issue_generator()
 

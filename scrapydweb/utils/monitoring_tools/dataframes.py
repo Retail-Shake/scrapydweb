@@ -1,18 +1,17 @@
 # -*- coding: utf-8 -*-
-import logging
-import os
 
 from . import maths as mtm
 
 
 def mysql_connector(
-    url="mysql://root:MySQL.R3t41lSh4k3x040121@127.0.0.1:3306",
+    url=None,
     database="scrapydweb_jobs",
 ):
     """
     This function is used to get a connector to the scrapyd MySQL DB.
     By default, connected to the scrapydweb_jobs database.
 
+    :param url:
     :param database: (str) the database to select
     :return:         (sqlite3.con) the db connector
     """
@@ -24,10 +23,12 @@ def mysql_connector(
 
     # | code section |
     # db connect
-    # user, password = re.findall(r"(?<=//)(.*?)(?=@)", DATABASE_URL)[0].split(":")
-    # host, port = re.findall(r"(?<=@)(.*?)$", DATABASE_URL)[0].split(":")
-    user, password = re.findall(r"(?<=//)(.*?)(?=@)", url)[0].split(":")
-    host, port = re.findall(r"(?<=@)(.*?)$", url)[0].split(":")
+    if not url:
+        user, password = re.findall(r"(?<=//)(.*?)(?=@)", DATABASE_URL)[0].split(":")
+        host, port = re.findall(r"(?<=@)(.*?)$", DATABASE_URL)[0].split(":")
+    else:
+        user, password = re.findall(r"(?<=//)(.*?)(?=@)", url)[0].split(":")
+        host, port = re.findall(r"(?<=@)(.*?)$", url)[0].split(":")
 
     con = None
 
@@ -80,14 +81,12 @@ def sqlite_connector(
 
 
 # TODO #2 @h4r1c0t: multinode request -> get the current node and the corresponding server.
-def sql_to_df(
-    con, node=None, select="*", table="127_0_0_1_6800", where="project = retail_shake"
-):
+def sql_to_df(con, select="*", table="127_0_0_1_6800", where="project = retail_shake"):
     """
     This function is used to automatically get data from scrapyd DB as a Pandas dataframe.
 
     :param con:     (sql connector) the connector for the scrapydweb DB
-    :param table:   (str) table name (default: 127.0.0.1:6800, the default server)
+    :param table:   (str) table name (default: 127_0_0_1_6800, local server as default)
     :param select:  (str) column to select (default: * all the columns)
     :param where:   (str) where condition for the select  (default: spider from 'retail_shake' project)
     :return:        (df)  query output as a pandas DataFrame
@@ -95,6 +94,7 @@ def sql_to_df(
     # | import section |
     import pandas as pd
 
+    # | code section |
     # import data
     df = pd.read_sql(
         f"""
