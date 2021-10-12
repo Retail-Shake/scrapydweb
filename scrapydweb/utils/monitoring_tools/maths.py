@@ -88,13 +88,18 @@ def set_alert_level(dataframe, column, n=0, log=False):
     data = dataframe[[f'{column}', f'{column}_favg', f'{column}_fstd']][dataframe['start_date'] == date]
     
     # Values
-    try:
-        scrap_average = int(np.round(data[f'{column}_favg'].values[0]))
-        scrap_std = int(np.round(data[f'{column}_fstd'].values[0]))
-        scrap_result = int(data[f'{column}'].values[0])
-    except IndexError:
-        print("IndexError in data..")
-    
+    metrics = [
+        0 if np.isnan(metric) else int(metric) for metric in [
+            data[f'{column}'].values[0],
+            data[f'{column}_favg'].values[0],
+            data[f'{column}_fstd'].values[0],
+        ]
+    ]
+
+    scrap_result = metrics[0]
+    scrap_average = metrics[1]
+    scrap_std = metrics[2]
+        
     if log:
         print(
             f"""
