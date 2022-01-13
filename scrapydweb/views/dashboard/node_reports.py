@@ -81,6 +81,7 @@ class NodeReportsView(BaseView):
                         self.finished_jobs.append(job)
                     except Exception as e:
                         self.logger(f"Failed to get data from database:\n{e}")
+
                 else:
                     job['alert_indicator'] = '🔄'
                     self.running_jobs.append(job)
