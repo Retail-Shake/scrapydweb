@@ -105,7 +105,7 @@ def set_alert_level(dataframe, column, n=0, log=False):
       scrap_result = 0
       scrap_average = 0
       scrap_std = 0
-    
+
     if log:
         print(
             f"""
