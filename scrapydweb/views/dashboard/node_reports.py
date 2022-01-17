@@ -69,13 +69,9 @@ class NodeReportsView(BaseView):
                     df = mtm.compute_floating_deviation(df, "items", 7)
                     df = mtm.compute_floating_deviation(df, "pages", 7)
 
-                    items_alert_lvl = mtm.set_alert_level(df, 'items')        
-                    pages_alert_lvl = mtm.set_alert_level(df, 'pages')
+                    items_alert_lvl = mtm.set_alert_level(df, 'items')      # issue #1279 → variable 'scrap_result' referenced before assignment
                     
-                    job['alert_indicator'] = mtm.check_alert_level(
-                        [items_alert_lvl, pages_alert_lvl],
-                        2
-                    )
+                    job['alert_indicator'] = mtm.check_alert_level(items_alert_lvl)
 
                     self.finished_jobs.append(job)
 
