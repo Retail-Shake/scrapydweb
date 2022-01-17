@@ -94,7 +94,7 @@ def set_alert_level(dataframe, column, n=0, log=False):
         scrap_result = int(data[f'{column}'].values[0])
     except IndexError:
         print("IndexError in data..")
-    
+
     if log:
         print(
             f"""
