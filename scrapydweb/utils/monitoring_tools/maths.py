@@ -72,7 +72,7 @@ def compute_floating_deviation(dataframe, column, n=3):
 
     return dataframe
 
-def set_alert_level(dataframe: DataFrame, column: str, log=False):
+def set_alert_level(dataframe, column: str, n=0, log=False):
     """This function is used to check if the last number of items/pages is lower than the threshold
 
     Args:
@@ -120,14 +120,16 @@ def set_alert_level(dataframe: DataFrame, column: str, log=False):
             )
 
     alert_lvl = 0
-    if scrap_result < np.round(scrap_average / 1.01):   # issue #1279 → variable 'scrap_result' referenced before assignment
-        alert_lvl += 1
-        if scrap_result < np.round(scrap_average - (scrap_std / 2)):
+    if scrap_result:
+        alert_lvl = 1
+        if scrap_result < np.round(scrap_average / 1.01):   # issue #1279 → variable 'scrap_result' referenced before assignment
             alert_lvl += 1
-            if scrap_result < np.round(scrap_average - scrap_std):
+            if scrap_result < np.round(scrap_average - (scrap_std / 2)):
                 alert_lvl += 1
-                if scrap_result < np.round(scrap_average / 2) or scrap_result == 0:
+                if scrap_result < np.round(scrap_average - scrap_std):
                     alert_lvl += 1
+                    if scrap_result < np.round(scrap_average / 2) or scrap_result == 0:
+                        alert_lvl += 1
 
     return alert_lvl
 
@@ -154,12 +156,14 @@ def check_alert_level(alert_levels, log=False):
         [print(f"\t- Alert{i}: {lvl}") for i, lvl in enumerate(alert_levels)]
 
     if current_alert == 0:
-        msg = '🟢'
+        msg = ''
     elif current_alert == 1:
-        msg = '🟡'
+        msg = '🟢'
     elif current_alert == 2:
-        msg = '🟠'
+        msg = '🟡'
     elif current_alert == 3:
+        msg = '🟠'
+    elif current_alert == 4:
         msg = '🔴'
     else:
         msg = '⚫️'

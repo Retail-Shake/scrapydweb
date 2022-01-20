@@ -34,47 +34,49 @@ class NodeReportsView(BaseView):
                 self.pending_jobs.append(job)
             else:
                 if job["finish"]:
-
-                    spider_filter = f"spider = '{job['spider']}'"
-                    table_name = self.SCRAPYD_SERVER.replace(".", "_").replace(":", "_")
-                    con, db_type = mtd.db_connect(DATABASE_URL, return_db_type=True)
-                    if db_type == "sqlite":
-                        query = f"""
-                            SELECT * 
-                            FROM '{table_name}'
-                            WHERE {spider_filter}
+                    try: 
+                        spider_filter = f"spider = '{job['spider']}'"
+                        table_name = self.SCRAPYD_SERVER.replace(".", "_").replace(":", "_")
+                        con, db_type = mtd.db_connect(DATABASE_URL, return_db_type=True)
+                        if db_type == "sqlite":
+                            query = f"""
+                                SELECT * 
+                                FROM '{table_name}'
+                                WHERE {spider_filter}
+                                """
+                            df = mtd.jobs_df_format(pd.read_sql(query, con=con))
+                        elif db_type == "mysql":
+                            query = f"""
+                            SELECT *
+                            FROM {table_name}
+                            WHERE {spider_filter};
                             """
+                            df = mtd.jobs_df_format(pd.read_sql(query, con=con))
+                        else:
+                            self.logger("Database type not handled yet...")
+                            return
+
                         df = mtd.jobs_df_format(pd.read_sql(query, con=con))
-                    elif db_type == "mysql":
-                        query = f"""
-                        SELECT *
-                        FROM {table_name}
-                        WHERE {spider_filter};
-                        """
-                        df = mtd.jobs_df_format(pd.read_sql(query, con=con))
-                    else:
-                        self.logger("Database type not handled yet...")
-                        return
+                        
+                        # 
+                        df = mtd.select_last_date(df, "start_date")
 
-                    df = mtd.jobs_df_format(pd.read_sql(query, con=con))
-                    
-                    # 
-                    df = mtd.select_last_date(df, "start_date")
+                        # Compute means
+                        df = mtm.compute_floating_means(df, "items", 7)  # Compute floating mean for items
+                        df = mtm.compute_floating_means(df, "pages", 7)  # Compute floating mean for pages
+                        
+                        # Compute standard deviations
+                        df = mtm.compute_floating_deviation(df, "items", 7)
+                        df = mtm.compute_floating_deviation(df, "pages", 7)
 
-                    # Compute means
-                    df = mtm.compute_floating_means(df, "items", 7)  # Compute floating mean for items
-                    df = mtm.compute_floating_means(df, "pages", 7)  # Compute floating mean for pages
-                    
-                    # Compute standard deviations
-                    df = mtm.compute_floating_deviation(df, "items", 7)
-                    df = mtm.compute_floating_deviation(df, "pages", 7)
+                        # Set alert lvl 
+                        items_alert_lvl = mtm.set_alert_level(df, 'items')      # issue #1279 → variable 'scrap_result' referenced before assignment
+                        job['alert_indicator'] = mtm.check_alert_level(items_alert_lvl)
 
-                    items_alert_lvl = mtm.set_alert_level(df, 'items')      # issue #1279 → variable 'scrap_result' referenced before assignment
-                    
-                    job['alert_indicator'] = mtm.check_alert_level(items_alert_lvl)
-
-                    self.finished_jobs.append(job)
-
+                        self.finished_jobs.append(job)        
+                        
+                    except Exception as e:
+                        self.logger(f"Failed to get data from database:\n{e}")
                 else:
                     job['alert_indicator'] = '🔄'
                     self.running_jobs.append(job)
