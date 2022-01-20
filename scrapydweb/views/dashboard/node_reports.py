@@ -2,7 +2,7 @@
 import json
 import pandas as pd
 
-from flask import render_template, url_for
+from flask import render_template, url_for, current_app
 
 from ..baseview import BaseView
 from ...utils.monitoring_tools import dataframes as mtd, maths as mtm, graphs as mtg
@@ -69,19 +69,14 @@ class NodeReportsView(BaseView):
                         df = mtm.compute_floating_deviation(df, "items", 7)
                         df = mtm.compute_floating_deviation(df, "pages", 7)
 
-                    # DEBUG >>> 
-                        job['alert_level'] = 0
-                        job['alert_indicator'] = "🟢"
+                        # Set alert lvl 
+                        items_alert_lvl = mtm.set_alert_level(df, 'items')      # issue #1279 → variable 'scrap_result' referenced before assignment
+                        job['alert_indicator'] = mtm.check_alert_level(items_alert_lvl)
 
-                    #     items_alert_lvl = mtm.set_alert_level(df, 'items')        
-                    #     job['alert_level'] = items_alert_lvl
-
-                    #     job['alert_indicator'] = mtm.check_alert_level([items_alert_lvl])
-                
-                        self.finished_jobs.append(job)
+                        self.finished_jobs.append(job)        
+                        
                     except Exception as e:
                         self.logger(f"Failed to get data from database:\n{e}")
-
                 else:
                     job['alert_indicator'] = '🔄'
                     self.running_jobs.append(job)
