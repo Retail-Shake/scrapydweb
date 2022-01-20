@@ -4,6 +4,8 @@
 from datetime import datetime
 from doctest import DocFileCase
 from typing import Sequence
+
+from pandas import DataFrame
 from . import dataframes
 
 
