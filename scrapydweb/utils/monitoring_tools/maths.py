@@ -104,7 +104,6 @@ def set_alert_level(dataframe, column: str, n=0, log=False):
                 data['items_fstd'].values[0]
             ]
         ]
-
     except:
         print("ERROR: error when getting scrap data..")
 
