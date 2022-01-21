@@ -33,6 +33,7 @@ class NodeReportsView(BaseView):
             else:
                 if job['finish']:
                     self.finished_jobs.append(job)
+
                 else:
                     self.running_jobs.append(job)
 
