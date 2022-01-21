@@ -207,9 +207,12 @@ def handle_route(app):
     from .views.dashboard.jobs import JobsView, JobsXhrView
     register_view(JobsView, 'jobs', [('jobs', None)])
     register_view(JobsXhrView, 'jobs.xhr', [('jobs/xhr/<action>/<int:id>', None)])
-
+    
     from .views.dashboard.node_reports import NodeReportsView
     register_view(NodeReportsView, 'nodereports', [('nodereports', None)])
+    
+    from .views.dashboard.node_reports_rs import NodeReportsRSView
+    register_view(NodeReportsRSView, 'nodereports_rs', [('nodereports_rs', None)])
 
     from .views.dashboard.cluster_reports import ClusterReportsView
     register_view(ClusterReportsView, 'clusterreports', [

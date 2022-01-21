@@ -2,7 +2,10 @@
 
 
 from datetime import datetime
+from doctest import DocFileCase
 from typing import Sequence
+
+from pandas import DataFrame
 from . import dataframes
 
 
@@ -69,13 +72,16 @@ def compute_floating_deviation(dataframe, column, n=3):
 
     return dataframe
 
-def set_alert_level(dataframe, column, n=0, log=False):
-    """
-    This function is used to check if the last number of items/pages is lower than the threshold 
-    
-    :param dataframe:   (df)    input DataFrame
-    :param column:      (str)   the column name used for the mean calculation
-    :return:            (int)   the signal alert
+def set_alert_level(dataframe, column: str, n=0, log=False):
+    """This function is used to check if the last number of items/pages is lower than the threshold
+
+    Args:
+        dataframe (DataFrame): input DataFrame
+        column (str): the column name used for the mean calculation
+        log (bool, optional): if True print metrics logs. Defaults to False.
+
+    Returns:
+        str: the signal alert
     """
     # | import section |
     import numpy as np 
@@ -89,11 +95,17 @@ def set_alert_level(dataframe, column, n=0, log=False):
     
     # Values
     try:
-        scrap_average = int(np.round(data[f'{column}_favg'].values[0]))
-        scrap_std = int(np.round(data[f'{column}_fstd'].values[0]))
-        scrap_result = int(data[f'{column}'].values[0])
-    except IndexError:
-        print("IndexError in data..")
+        scrap_result, scrap_average, scrap_std = [
+            0 if str(metric) == 'nan' or str(metric) == ''
+            else int(metric)
+            for metric in [
+                data['items'].values[0], 
+                data['items_favg'].values[0],
+                data['items_fstd'].values[0]
+            ]
+        ]
+    except:
+        print("ERROR: error when getting scrap data..")
 
     if log:
         print(
@@ -107,14 +119,16 @@ def set_alert_level(dataframe, column, n=0, log=False):
             )
 
     alert_lvl = 0
-    if scrap_result < np.round(scrap_average / 1.01):
-        alert_lvl += 1
-        if scrap_result < np.round(scrap_average - (scrap_std / 2)):
+    if scrap_result:
+        alert_lvl = 1
+        if scrap_result < np.round(scrap_average / 1.01):   # issue #1279 → variable 'scrap_result' referenced before assignment
             alert_lvl += 1
-            if scrap_result < np.round(scrap_average - scrap_std):
+            if scrap_result < np.round(scrap_average - (scrap_std / 2)):
                 alert_lvl += 1
-                if scrap_result < np.round(scrap_average / 2) or scrap_result == 0:
+                if scrap_result < np.round(scrap_average - scrap_std):
                     alert_lvl += 1
+                    if scrap_result < np.round(scrap_average / 2) or scrap_result == 0:
+                        alert_lvl += 1
 
     return alert_lvl
 
@@ -141,12 +155,14 @@ def check_alert_level(alert_levels, log=False):
         [print(f"\t- Alert{i}: {lvl}") for i, lvl in enumerate(alert_levels)]
 
     if current_alert == 0:
-        msg = '🟢'
+        msg = ''
     elif current_alert == 1:
-        msg = '🟡'
+        msg = '🟢'
     elif current_alert == 2:
-        msg = '🟠'
+        msg = '🟡'
     elif current_alert == 3:
+        msg = '🟠'
+    elif current_alert == 4:
         msg = '🔴'
     else:
         msg = '⚫️'
