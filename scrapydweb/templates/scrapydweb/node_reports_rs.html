@@ -73,7 +73,6 @@
             </div>
         </template>
     </el-table-column> {% endcomment %}
-
     <el-table-column prop="start" label="Start" sortable align="center" width="145"></el-table-column>
     <el-table-column prop="runtime" label="Runtime" sortable :sort-method="sortRuntime" :sort-orders="sortOrders" align="center" width="125"></el-table-column>
 
@@ -337,6 +336,7 @@ var Main = {
         })
   }
 }) {% endcomment %}
+
 
 var Ctor = Vue.extend(Main);
 vm = new Ctor().$mount('#app');
