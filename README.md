@@ -154,6 +154,12 @@ Detailed changes for each release are documented in the [:link: HISTORY.md](http
 | [<img src="https://github.com/simplety.png" width="100px;"/>](https://github.com/simplety)<br/> [<sub>Kaisla</sub>](https://github.com/simplety) |
 | --- |
 
+## How to release?
+
+1. First step is to [Merge `master` into the `RELEASE` branch](https://github.com/Retail-Shake/scrapydweb/compare/RELEASE...master)
+2. Create a [Release Tag](https://github.com/Retail-Shake/scrapydweb/releases/new?target=RELEASE) on the `RELEASE` branch
+3. Go on `daft-punk` (with bastion for example)
+4. start-prod.sh $VERSION
 
 ## :copyright: License
 This project is licensed under the GNU General Public License v3.0 - see the [:link: LICENSE](https://github.com/my8100/scrapydweb/blob/master/LICENSE) file for details.

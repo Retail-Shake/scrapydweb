@@ -28,16 +28,16 @@ NOT_DELETED = '0'
 DELETED = '1'
 HREF_PATTERN = re.compile(r"""href=['"](.+?)['"]""")  # Temp support for Scrapyd v1.3.0 (not released)
 JOB_PATTERN = re.compile(r"""
-                            <tr>
-                                <td>(?P<Project>.*?)</td>
-                                <td>(?P<Spider>.*?)</td>
-                                <td>(?P<Job>.*?)</td>
-                                (?:<td>(?P<PID>.*?)</td>)?
-                                (?:<td>(?P<Start>.*?)</td>)?
-                                (?:<td>(?P<Runtime>.*?)</td>)?
-                                (?:<td>(?P<Finish>.*?)</td>)?
-                                (?:<td>(?P<Log>.*?)</td>)?
-                                (?:<td>(?P<Items>.*?)</td>)?
+                            <tr>\s*
+                                <td>(?P<Project>.*?)</td>\s*
+                                <td>(?P<Spider>.*?)</td>\s*
+                                <td>(?P<Job>.*?)</td>\s*
+                                (?:<td>(?P<PID>.*?)</td>\s*)?
+                                (?:<td>(?P<Start>.*?)</td>\s*)?
+                                (?:<td>(?P<Runtime>.*?)</td>\s*)?
+                                (?:<td>(?P<Finish>.*?)</td>\s*)?
+                                (?:<td>(?P<Log>.*?)</td>\s*)?
+                                (?:<td>(?P<Items>.*?)</td>\s*)?
                                 [\w\W]*?  # Temp support for Scrapyd v1.3.0 (not released)
                             </tr>
                           """, re.X)
