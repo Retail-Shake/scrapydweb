@@ -36,7 +36,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v3
       with:
-        images: registry.daft-punk.retailshake.com/scrapydweb
+        images: radiohead.retailshake.com/scrapydweb
         tags: |
             type=ref,event=branch
     - name: Build and push
