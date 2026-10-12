@@ -80,6 +80,8 @@ def create_app(test_config=None):
 
     handle_db(app)
     handle_route(app)
+    from .collections_api import bp as collections_api
+    app.register_blueprint(collections_api)
     handle_template_context(app)
 
     # @app.errorhandler(404)

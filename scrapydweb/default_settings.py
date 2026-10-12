@@ -362,3 +362,12 @@ DATA_PATH = os.environ.get('DATA_PATH', '')
 # 'sqlite:///C:/Users/username'
 # 'sqlite:////home/username'
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
+
+# Piwigo integration: opt-in, no implicit route or credentials.
+COLLECTIONS_API_TOKEN = ''
+COLLECTIONS_GATE_URL = ''
+COLLECTIONS_GATE_TOKEN = ''
+COLLECTIONS_LOCK_PATH = ''
+COLLECTIONS_ROUTES = {}
+COLLECTIONS_TIMEZONE = 'Europe/Paris'
+COLLECTIONS_HOUR = 6

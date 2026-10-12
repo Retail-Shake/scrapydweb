@@ -845,6 +845,9 @@ class ScheduleTaskView(BaseView):
         self.data = {}
 
     def dispatch_request(self, **kwargs):
+        from ...collections_api import task_allowed
+        if not task_allowed(int(self.task_id)):
+            return self.json_dumps(dict(status=self.ERROR, message="Collection authorization denied"), as_response=True)
         task = Task.query.get(self.task_id)
         if not task:
             message = "Task #%s not found" % self.task_id
