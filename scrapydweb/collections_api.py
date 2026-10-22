@@ -37,9 +37,11 @@ def validate(data):
             'store_id', 'frequency', 'starts_on', 'ends_on', 'quality_revision', 'fulfillment_scope'}
     if not isinstance(data, dict) or not keys <= set(data) or set(data) - keys - {'schedule', 'period'}:
         raise ValueError('Invalid collection document')
-    for key in ('company_id', 'revision', 'domain_id', 'retailer_company_id', 'quality_revision'):
+    for key in ('company_id', 'revision', 'domain_id', 'retailer_company_id'):
         if type(data[key]) is not int or not 0 < data[key] <= 2147483647:
             raise ValueError('Invalid identifier')
+    if type(data['quality_revision']) is not int or not 0 <= data['quality_revision'] <= 2147483647:
+        raise ValueError('Invalid quality revision')
     if data['state'] not in ('reserved', 'draft', 'archived') or data['coverage'] not in ('national', 'store'):
         raise ValueError('Invalid collection state')
     if data['frequency'] not in ('daily', 'weekly', 'monthly', 'custom'):

@@ -345,3 +345,19 @@ def test_changed_or_disabled_database_source_blocks_dispatch(env, monkeypatch):
     monkeypatch.setattr(api, 'resolve_source', unavailable)
     assert not api.task_allowed(task_id)
     assert models.Task.query.count() == 1
+
+
+def test_zero_quality_revision_without_quality_commitment(env):
+    client, scheduler = env
+    data = dict(payload(), quality_revision=0)
+    result = client.post('/collections/v1/' + 'a' * 32 + '/check/', json=data,
+                         headers={'X-Piwigo-Token': 'synthetic-token'})
+    assert result.status_code == 200
+    assert models.Task.query.count() == 0 and not scheduler.get_jobs()
+    result = put(client, data)
+    assert result.status_code == 200
+    assert models.Task.query.count() == 1
+    for value in [-1, True, '0', 2147483648]:
+        assert put(client, dict(data, quality_revision=value)).status_code == 400
+    for key in ['company_id', 'revision', 'domain_id', 'retailer_company_id']:
+        assert put(client, dict(data, **{key: 0})).status_code == 400
