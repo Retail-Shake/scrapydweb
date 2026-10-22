@@ -35,15 +35,30 @@ def locked():
 def validate(data):
     keys = {'company_id', 'revision', 'state', 'domain_id', 'retailer_company_id', 'coverage',
             'store_id', 'frequency', 'starts_on', 'ends_on', 'quality_revision', 'fulfillment_scope'}
-    if not isinstance(data, dict) or set(data) != keys:
+    if not isinstance(data, dict) or not keys <= set(data) or set(data) - keys - {'schedule', 'period'}:
         raise ValueError('Invalid collection document')
     for key in ('company_id', 'revision', 'domain_id', 'retailer_company_id', 'quality_revision'):
         if type(data[key]) is not int or not 0 < data[key] <= 2147483647:
             raise ValueError('Invalid identifier')
     if data['state'] not in ('reserved', 'draft', 'archived') or data['coverage'] not in ('national', 'store'):
         raise ValueError('Invalid collection state')
-    if data['frequency'] not in ('daily', 'weekly', 'monthly'):
+    if data['frequency'] not in ('daily', 'weekly', 'monthly', 'custom'):
         raise ValueError('Invalid frequency')
+    if data['frequency'] == 'custom' and 'schedule' not in data:
+        raise ValueError('Missing schedule')
+    if 'schedule' in data:
+        fields = {'year', 'month', 'day', 'week', 'day_of_week', 'hour', 'minute', 'second', 'timezone'}
+        if not isinstance(data['schedule'], dict) or set(data['schedule']) != fields or not all(isinstance(v, str) and 0 < len(v) <= 100 for v in data['schedule'].values()):
+            raise ValueError('Invalid schedule')
+        CronTrigger(**data['schedule'])
+    if 'period' in data:
+        period=data['period']
+        if not isinstance(period, dict) or set(period) != {'start_date', 'end_date'}:
+            raise ValueError('Invalid contract period')
+        start=datetime.fromisoformat(period['start_date'])
+        end=datetime.fromisoformat(period['end_date'])
+        if start.tzinfo is None or end.tzinfo is None or end < start:
+            raise ValueError('Invalid contract period')
     for key in ('starts_on', 'ends_on'):
         if not isinstance(data[key], str) or datetime.strptime(data[key], '%Y-%m-%d').strftime('%Y-%m-%d') != data[key]:
             raise ValueError('Invalid dates')
@@ -58,8 +73,8 @@ def validate(data):
     return data
 
 
-def schedule_spec(data):
-    route = current_app.config.get('COLLECTIONS_ROUTES', {}).get('%s:%s' % (data['domain_id'], data['coverage']))
+def schedule_spec(data, collection):
+    route = resolve_source(collection, data)
     if not route or route.get('retailer_company_id') != data['retailer_company_id'] or data['company_id'] not in route.get('client_company_ids', []):
         raise ValueError('No qualified route')
     if data['fulfillment_scope'] not in route.get('fulfillment_scopes', []):
@@ -97,30 +112,47 @@ def schedule_spec(data):
     start = datetime.strptime(data['starts_on'], '%Y-%m-%d')
     cron = dict(year='*', month='*', day='*', week='*', day_of_week='*', hour=str(hour), minute='0', second='0',
                 start_date=data['starts_on'] + ' 00:00:00', end_date=data['ends_on'] + ' 23:59:59', timezone=zone, jitter=0)
-    if data['frequency'] == 'weekly':
+    if 'schedule' in data:
+        cron.update(data['schedule'])
+    elif data['frequency'] == 'weekly':
         cron['day_of_week'] = str(start.weekday())
     elif data['frequency'] == 'monthly':
         # Explicitly reject ambiguous short-month anchors until a product rule is approved.
         if start.day > 28:
             raise ValueError('Monthly starts after day 28 require review')
         cron['day'] = str(start.day)
+    if 'period' in data:
+        cron.update(data['period'])
     CronTrigger(**cron)  # Validate before any mutation.
     return route, args, cron
 
 
-def approved(collection, data):
+def gate_response(collection, data, resolve=False):
     url = current_app.config.get('COLLECTIONS_GATE_URL', '')
     token = current_app.config.get('COLLECTIONS_GATE_TOKEN', '')
-    if not url.startswith('https://') or not token:
-        return False
+    schemes = ('https://', 'http://') if current_app.config.get('COLLECTIONS_ALLOW_HTTP') is True else ('https://',)
+    if not url.startswith(schemes) or not token:
+        return {}
     digest = hashlib.sha256(json.dumps(data, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
     try:
         response = requests.post(url, json={'collection_id': collection, 'company_id': data['company_id'],
-                                           'revision': data['revision'], 'digest': digest},
+                                           'revision': data['revision'], 'digest': digest, **({'resolve_source': True} if resolve else {})},
                                  headers={'Authorization': 'Bearer ' + token}, timeout=(3, 8), allow_redirects=False)
-        return response.status_code == 200 and response.json() == {'allowed': True}
+        result = response.json() if response.status_code == 200 else {}
+        return result if isinstance(result, dict) else {}
     except (requests.RequestException, ValueError):
-        return False
+        return {}
+
+
+def approved(collection, data):
+    return gate_response(collection, data) == {'allowed': True}
+
+
+def resolve_source(collection, data):
+    result = gate_response(collection, data, resolve=True)
+    if result.get('allowed') is not True or not isinstance(result.get('route'), dict):
+        raise ValueError('No authorized database source')
+    return result['route']
 
 
 def collection_today():
@@ -143,10 +175,12 @@ def task_allowed(task_id):
         return True  # Preserve unmanaged native tasks.
     latest = CollectionTask.query.filter_by(collection_id=binding.collection_id).order_by(CollectionTask.revision.desc()).first()
     data = json.loads(binding.document)
-    if latest.revision != binding.revision or data['state'] != 'reserved' or not data['starts_on'] <= collection_today() <= data['ends_on']:
+    today = (datetime.now(CronTrigger(timezone=data['schedule']['timezone']).timezone).strftime('%Y-%m-%d')
+             if 'schedule' in data else collection_today())
+    if latest.revision != binding.revision or data['state'] != 'reserved' or not data['starts_on'] <= today <= data['ends_on']:
         return False
     try:
-        spec = schedule_spec(data)
+        spec = schedule_spec(data, binding.collection_id)
         if not task_matches(Task.query.get(task_id), spec):
             return False
         return approved(binding.collection_id, data)
@@ -174,7 +208,7 @@ def apply(collection, data, scheduler):
         if latest and (latest.company_id != data['company_id'] or latest.revision > data['revision']
                        or (latest.revision == data['revision'] and latest.document != document)):
             return {'error': 'revision_conflict'}, 409
-        spec = schedule_spec(data) if data['state'] == 'reserved' else None
+        spec = schedule_spec(data, collection) if data['state'] == 'reserved' else None
         if spec and latest and latest.revision == data['revision'] and not task_matches(Task.query.get(latest.task_id), spec):
             return {'error': 'native_task_drift'}, 409
         if spec and not approved(collection, data):
@@ -255,7 +289,7 @@ def preflight(collection):
         if not current_app.config.get('COLLECTIONS_LOCK_PATH'):
             return jsonify(error='integration_not_configured'), 503
         if data['state'] == 'reserved':
-            spec = schedule_spec(data)
+            spec = schedule_spec(data, collection)
             if latest and latest.revision == data['revision'] and not task_matches(Task.query.get(latest.task_id), spec):
                 return jsonify(error='native_task_drift'), 409
             if not approved(collection, data):

@@ -27,7 +27,7 @@ def env(tmp_path, monkeypatch):
     app.config.update(SQLALCHEMY_DATABASE_URI='sqlite://', SQLALCHEMY_TRACK_MODIFICATIONS=False,
                       SQLALCHEMY_BINDS={'metadata': 'sqlite://', 'jobs': 'sqlite://'},
                       COLLECTIONS_API_TOKEN='synthetic-token', COLLECTIONS_LOCK_PATH=str(tmp_path / 'lock'),
-                      SCRAPYD_SERVERS=['synthetic-worker'], COLLECTIONS_ROUTES={'1:national': dict(
+                      SCRAPYD_SERVERS=['synthetic-worker'], TEST_SOURCE_ROWS={'1:national': dict(
                           project='retail_shake', version='fixture1', spider='synthetic', node=1,
                           retailer_company_id=101, client_company_ids=[10], fulfillment_scopes=['both'])})
     models.db.init_app(app); models.db.app = app
@@ -36,6 +36,7 @@ def env(tmp_path, monkeypatch):
     mod = types.ModuleType('scrapydweb.utils.scheduler'); mod.scheduler = scheduler
     monkeypatch.setitem(sys.modules, 'scrapydweb.utils.scheduler', mod)
     monkeypatch.setattr(api, 'approved', lambda *args: True)
+    monkeypatch.setattr(api, 'resolve_source', lambda collection, data: app.config['TEST_SOURCE_ROWS'].get('%s:%s' % (data['domain_id'], data['coverage'])))
     monkeypatch.setattr(api, 'collection_today', lambda: '2099-01-01')
     app.register_blueprint(api.bp)
     with app.app_context():
@@ -156,7 +157,7 @@ def test_preflight_does_not_create_tasks_or_change_scheduler(env, monkeypatch):
 def test_salon_pilot_store_route_and_fixed_catalogue_argument(env):
     client, scheduler = env
     from flask import current_app
-    current_app.config['COLLECTIONS_ROUTES']['1:store'] = dict(
+    current_app.config['TEST_SOURCE_ROWS']['1:store'] = dict(
         project='retail_shake', version='fixture1', spider='leclerc_drive_fr_stores_pagelist', node=1,
         retailer_company_id=226, client_company_ids=[10], fulfillment_scopes=['1P'],
         store_argument='store_ids', allowed_store_ids=['161301-161301'], fixed_arguments={'full_catalog': 'true'})
@@ -167,7 +168,7 @@ def test_salon_pilot_store_route_and_fixed_catalogue_argument(env):
     assert json.loads(task.settings_arguments) == {'setting': [], 'store_ids': '161301-161301', 'full_catalog': 'true'}
     assert task.spider == 'leclerc_drive_fr_stores_pagelist'
     assert put(client, dict(data, store_id='056801-056801'), collection='b' * 32).status_code == 400
-    current_app.config['COLLECTIONS_ROUTES']['1:store']['fixed_arguments']['store_ids'] = 'other'
+    current_app.config['TEST_SOURCE_ROWS']['1:store']['fixed_arguments']['store_ids'] = 'other'
     assert put(client, data).status_code == 400
     assert models.Task.query.count() == 1
 
@@ -233,7 +234,7 @@ def test_real_php_reservation_native_task_and_revocation(env, monkeypatch):
         pytest.skip('Set COLLECTION_PHP_CONTRACT=1 with isolated PHP fixture mounted in piwigo-dev')
     client, scheduler = env
     from flask import current_app
-    current_app.config['COLLECTIONS_ROUTES']['4:store'] = dict(
+    current_app.config['TEST_SOURCE_ROWS']['4:store'] = dict(
         project='retail_shake', version='fixture1', spider='leclerc_drive_fr_stores_pagelist', node=1,
         retailer_company_id=226, client_company_ids=[10], fulfillment_scopes=['1P'],
         store_argument='store_ids', allowed_store_ids=['161301-161301'], fixed_arguments={'full_catalog':'true'})
@@ -270,3 +271,77 @@ def test_real_php_reservation_native_task_and_revocation(env, monkeypatch):
         process.stdin.close()
         process.wait(timeout=10)
         assert process.returncode==0, process.stderr.read()
+
+
+def test_explicit_schedule_roundtrip_and_revision(env):
+    client, scheduler = env
+    schedule = dict(year='*', month='*', day='*', week='*', day_of_week='1,5', hour='8', minute='10', second='15', timezone='Europe/Paris')
+    data = payload(schedule=schedule)
+    api.validate(data)
+    response = put(client, data)
+    assert response.status_code == 200
+    task_id = response.json['task_id']
+    task = models.Task.query.get(task_id)
+    assert all(str(getattr(task,k)) == v for k,v in schedule.items())
+    data['revision'] += 1
+    data['schedule']['minute'] = '25'
+    response = put(client, data)
+    assert response.status_code == 200
+    assert str(models.Task.query.get(response.json['task_id']).minute) == '25'
+    assert scheduler.get_job(str(task_id)) is None or scheduler.get_job(str(task_id)).next_run_time is None
+    data['revision'] += 1
+    data['schedule']['hour'] = '30'
+    assert put(client, data).status_code >= 400
+
+
+def test_contract_period_preserves_exact_cutoff(env):
+    client, scheduler = env
+    data=payload(period={'start_date':'2099-01-01T12:00:00+00:00','end_date':'2099-02-28T11:59:59+00:00'})
+    api.validate(data)
+    response=put(client,data)
+    assert response.status_code == 200
+    task=models.Task.query.get(response.json['task_id'])
+    assert task.start_date == data['period']['start_date']
+    assert task.end_date == data['period']['end_date']
+    _,_,cron=api.schedule_spec(data, 'a' * 32)
+    trigger=api.CronTrigger(**cron)
+    assert trigger.end_date.isoformat() == data['period']['end_date']
+
+
+def test_database_source_transport(monkeypatch):
+    app = Flask(__name__)
+    app.config.update(COLLECTIONS_GATE_URL='https://gate.example', COLLECTIONS_GATE_TOKEN='synthetic')
+    calls = []
+    route = {'project': 'synthetic'}
+    class Response:
+        status_code = 200
+        def json(self): return {'allowed': True, 'route': route}
+    def post(url, **kwargs):
+        calls.append(kwargs)
+        return Response()
+    monkeypatch.setattr(api.requests, 'post', post)
+    with app.app_context():
+        assert api.resolve_source('a'*32, payload()) == route
+        assert calls[0]['json']['resolve_source'] is True
+        assert calls[0]['allow_redirects'] is False
+        monkeypatch.setattr(Response, 'json', lambda self: {'allowed': False})
+        with pytest.raises(ValueError): api.resolve_source('a'*32, payload())
+        app.config['COLLECTIONS_ROUTES'] = {'1:national': route}
+        with pytest.raises(ValueError): api.resolve_source('a'*32, payload())
+
+
+def test_changed_or_disabled_database_source_blocks_dispatch(env, monkeypatch):
+    from flask import current_app
+    client, scheduler = env
+    result = put(client, payload())
+    task_id = result.json['task_id']
+    assert api.task_allowed(task_id)
+    current_app.config['TEST_SOURCE_ROWS']['1:national']['spider'] = 'changed_source'
+    assert not api.task_allowed(task_id)
+    current_app.config['TEST_SOURCE_ROWS']['1:national']['spider'] = 'synthetic'
+    assert api.task_allowed(task_id)
+    def unavailable(*args):
+        raise ValueError('Database source disabled')
+    monkeypatch.setattr(api, 'resolve_source', unavailable)
+    assert not api.task_allowed(task_id)
+    assert models.Task.query.count() == 1

@@ -1,0 +1,5 @@
+FROM scrapydweb-collections:qualification-20261022
+RUN python -m pip install pytest==8.3.5
+COPY rs_tests /usr/local/lib/python3.9/site-packages/rs_tests
+ENTRYPOINT ["python", "-m", "pytest"]
+CMD ["-q", "/usr/local/lib/python3.9/site-packages/rs_tests/test_collections_api.py"]

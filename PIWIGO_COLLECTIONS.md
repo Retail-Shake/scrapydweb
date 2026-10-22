@@ -11,9 +11,11 @@ Configure in server settings, with secrets outside Git:
 - `COLLECTIONS_GATE_URL`: HTTPS Piwigo `/data_collections_gate.php` endpoint.
 - `COLLECTIONS_GATE_TOKEN`: different token for execution authorization.
 - `COLLECTIONS_LOCK_PATH`: writable file in shared persistent data directory.
-- `COLLECTIONS_ROUTES`: explicit mapping `"domain_id:coverage"` to `project`,
-  pinned `version`, `spider`, `node`, `retailer_company_id`, `client_company_ids`,
-  `fulfillment_scopes`; for stores, also a qualified `store_argument`.
+- Source mappings live in Piwigo's `data_collection_sources` database table.
+  The authenticated gate resolves the source only after checking the collection
+  digest, revision, tenant, rights and scope. No file route fallback is used.
+  The mapping is re-read before every managed task dispatch; changed targets,
+  disabled sources and unavailable gates fail closed.
 - `COLLECTIONS_TIMEZONE` / `COLLECTIONS_HOUR`: defaults Europe/Paris and 06:00,
   operational assumptions to validate before enabling a pilot.
 
