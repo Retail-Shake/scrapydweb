@@ -1,0 +1,13 @@
+# Preserve the qualified production runtime. Build without starting the scheduler.
+ARG BASE_IMAGE=radiohead.retailshake.com/scrapydweb@sha256:898033bde20a5846de25105942edb5879f00fca1ee53e7727fff236e8512210a
+FROM ${BASE_IMAGE}
+WORKDIR /usr/local/lib/python3.9/site-packages
+# Port only the integration hooks; keep production's v11 settings and UI.
+COPY docker/collections-runtime.patch /tmp/collections-runtime.patch
+RUN git apply --check --ignore-space-change /tmp/collections-runtime.patch \
+    && git apply --ignore-space-change /tmp/collections-runtime.patch \
+    && rm /tmp/collections-runtime.patch
+COPY scrapydweb/collections_api.py scrapydweb/collection_progress.py ./scrapydweb/
+RUN python -m compileall -q scrapydweb
+WORKDIR /app
+CMD ["scrapydweb"]

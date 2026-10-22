@@ -1,0 +1,6 @@
+ARG COLLECTIONS_IMAGE=scrapydweb-collections:qualification-20261022
+FROM ${COLLECTIONS_IMAGE}
+RUN python -m pip install pytest==8.3.5
+COPY rs_tests /usr/local/lib/python3.9/site-packages/rs_tests
+ENTRYPOINT ["python", "-m", "pytest"]
+CMD ["-q", "/usr/local/lib/python3.9/site-packages/rs_tests/test_collections_api.py"]

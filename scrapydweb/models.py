@@ -177,3 +177,13 @@ class TaskJobResult(db.Model):
             id=self.id,
         )
         return '<TaskJobResult \n%s>' % pformat(kwargs, indent=4)
+
+
+class CollectionTask(db.Model):
+    """Immutable ownership and revision binding for a Piwigo-managed Timer Task."""
+    __tablename__ = 'collection_tasks'
+    collection_id = db.Column(db.String(32), primary_key=True)
+    revision = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, nullable=False)
+    document = db.Column(db.Text, nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=True)

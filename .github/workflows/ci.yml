@@ -39,14 +39,20 @@ jobs:
         images: radiohead.retailshake.com/scrapydweb
         tags: |
             type=ref,event=branch
-    - name: Build and push
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        file: docker/Dockerfile
-        tags: ${{ steps.meta.outputs.tags }}
-        push: true
-
-
-           
-      
+            type=ref,event=pr
+    - name: Build collections image
+      run: docker build -f docker/Dockerfile.collections -t scrapydweb-collections:ci .
+    - name: Test collections image
+      run: |
+        docker build -f docker/Dockerfile.collections-test --build-arg COLLECTIONS_IMAGE=scrapydweb-collections:ci -t scrapydweb-collections:test-ci .
+        docker run --rm --network none scrapydweb-collections:test-ci
+    - name: Publish tested image
+      if: github.event_name == 'push'
+      env:
+        IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+      run: |
+        while IFS= read -r tag; do
+          [ -n "$tag" ] || continue
+          docker tag scrapydweb-collections:ci "$tag"
+          docker push "$tag"
+        done <<< "$IMAGE_TAGS"

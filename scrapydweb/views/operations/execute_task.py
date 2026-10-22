@@ -19,7 +19,8 @@ EXTRACT_URL_SERVER_PATTERN = re.compile(r'//(.+?:\d+)')
 class TaskExecutor(object):
 
     def __init__(self, task_id, task_name, url_scrapydweb, url_schedule_task, url_delete_task_result,
-                 auth, selected_nodes):
+                 auth, selected_nodes, allow_retry=True):
+        self.allow_retry = allow_retry
         self.task_id = task_id
         self.task_name = task_name
         self.url_scrapydweb = url_scrapydweb
@@ -88,7 +89,7 @@ class TaskExecutor(object):
             js = get_response_from_view(url_schedule_task, auth=self.auth, data=self.data, as_json=True)
             assert js['status_code'] == 200 and js['status'] == 'ok', "Request got %s" % js
         except Exception as err:
-            if node not in self.nodes_to_retry:
+            if self.allow_retry and node not in self.nodes_to_retry:
                 apscheduler_logger.warning("Fail to execute task #%s (%s) on node %s, would retry later: %s",
                                            self.task_id, self.task_name, node, err)
                 self.nodes_to_retry.append(node)
@@ -147,8 +148,14 @@ class TaskExecutor(object):
             self.logger.info("Inserted task_result: %s", task_result)
 
 
-def execute_task(task_id):
+def execute_task(task_id, allow_retry=True):
     with db.app.app_context():
+        from ...models import CollectionTask
+        from ...collections_api import task_allowed
+        if CollectionTask.query.filter_by(task_id=task_id).first():
+            allow_retry = False
+            if not task_allowed(task_id):
+                return
         task = Task.query.get(task_id)
         apscheduler_job = scheduler.get_job(str(task_id))
         if not task:
@@ -165,7 +172,7 @@ def execute_task(task_id):
                                          url_schedule_task=metadata.get('url_schedule_task', '/1/schedule/task/'),
                                          url_delete_task_result=url_delete_task_result,
                                          auth=(username, password) if username and password else None,
-                                         selected_nodes=json.loads(task.selected_nodes))
+                                         selected_nodes=json.loads(task.selected_nodes), allow_retry=allow_retry)
             try:
                 task_executor.main()
             except Exception:
