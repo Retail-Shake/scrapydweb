@@ -361,3 +361,20 @@ def test_zero_quality_revision_without_quality_commitment(env):
         assert put(client, dict(data, quality_revision=value)).status_code == 400
     for key in ['company_id', 'revision', 'domain_id', 'retailer_company_id']:
         assert put(client, dict(data, **{key: 0})).status_code == 400
+
+
+def test_collection_tasks_always_follow_latest_version(env):
+    client, scheduler = env
+    result = put(client, payload())
+    assert result.status_code == 200
+    task = models.Task.query.get(result.json['task_id'])
+    assert task.version == 'default: the latest version'
+    next_run = scheduler.get_job(str(task.id)).next_run_time
+    from flask import current_app
+    current_app.config['TEST_SOURCE_ROWS']['1:national']['version'] = 'new_release'
+    assert put(client, payload()).status_code == 200
+    assert models.Task.query.count() == 1
+    assert scheduler.get_job(str(task.id)).next_run_time == next_run
+    task.version = 'old_release'
+    models.db.session.commit()
+    assert put(client, payload()).json['error'] == 'native_task_drift'

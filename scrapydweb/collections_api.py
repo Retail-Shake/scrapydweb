@@ -84,6 +84,8 @@ def schedule_spec(data, collection):
     for key in ('project', 'version', 'spider'):
         if not isinstance(route.get(key), str) or not re.fullmatch(r'[a-zA-Z0-9_.-]{1,120}', route[key]):
             raise ValueError('Invalid spider route')
+    # Native ScrapydWeb omits _version for this sentinel, resolving latest at each run.
+    route = dict(route, version='default: the latest version')
     node = route.get('node')
     if type(node) is not int or not 1 <= node <= len(current_app.config.get('SCRAPYD_SERVERS', [])):
         raise ValueError('Invalid worker node')

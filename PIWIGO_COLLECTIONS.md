@@ -93,3 +93,7 @@ current snapshot <= 120 seconds old. Percent is elapsed/median (estimated, cappe
 at 95), not measured work completion. Overruns and insufficient/stale evidence
 suppress ETA. A finished crawl does not prove ingestion or delivery. Native job
 snapshot collection must be enabled for runtime evidence; this API never starts it.
+
+## Spider version policy
+
+Collection Timer Tasks always use ScrapydWeb `default: the latest version`. The worker resolves the latest deployed project version at each scheduled run; a historical source version must not pin new tasks. Existing pinned tasks require a scoped migration together with connector deployment, preserving task IDs, arguments and schedules.
