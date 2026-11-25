@@ -1,0 +1,431 @@
+diff --git a/scrapydweb/__init__.py b/scrapydweb/__init__.py
+index 93d2f49..5a48d0f 100644
+--- a/scrapydweb/__init__.py
++++ b/scrapydweb/__init__.py
+@@ -252,6 +252,9 @@ def handle_route(app):
+         ('logs', dict(project=None, spider=None))
+     ])
+ 
++    from .views.files.spider_logs import SpiderLogsView
++    register_view(SpiderLogsView, 'spiderlogs', [('spiderlogs', None)])
++
+     from .views.files.items import ItemsView
+     register_view(ItemsView, 'items', [
+         ('items/<project>/<spider>', None),
+diff --git a/scrapydweb/templates/base.html b/scrapydweb/templates/base.html
+index c33de91..87ad6c1 100644
+--- a/scrapydweb/templates/base.html
++++ b/scrapydweb/templates/base.html
+@@ -224,6 +224,15 @@
+           <span>Logs</span>
+         </a>
+       </li>
++      <li>
++        <a id="menu_spiderlogs" href="{{ g.url_menu_spiderlogs }}" onclick="showLoader();">
++          <svg class="icon" aria-hidden="true" viewBox="0 0 24 24">
++            <circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"></circle>
++            <line x1="15" y1="15" x2="21" y2="21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></line>
++          </svg>
++          <span title="Spider Logs Search">Search Logs</span>
++        </a>
++      </li>
+     {% if SHOW_SCRAPYD_ITEMS %}
+       <li>
+         <a id="menu_items" href="{{ g.url_menu_items }}" onclick="showLoader();">
+diff --git a/scrapydweb/templates/scrapydweb/cluster_reports.html b/scrapydweb/templates/scrapydweb/cluster_reports.html
+index 7f213a3..410e7fc 100644
+--- a/scrapydweb/templates/scrapydweb/cluster_reports.html
++++ b/scrapydweb/templates/scrapydweb/cluster_reports.html
+@@ -43,8 +43,8 @@
+     :default-sort="{prop: 'node', order: 'ascending'}"
+   >
+ 
+-    <el-table-column prop="node" label="Node" fixed sortable align="center" width="70"></el-table-column>
+-    <el-table-column prop="stats" label="Stats" fixed sortable :sort-method="sortStatus" align="center" width="100">
++    <el-table-column prop="node" label="Node" sortable align="center" width="70"></el-table-column>
++    <el-table-column prop="stats" label="Stats" sortable :sort-method="sortStatus" align="center" width="100">
+       <template slot-scope="scope">
+         <a target="_blank" :class="scope.row.stats_class" v-bind:style="{display: scope.row.stats_display}" :href="scope.row.stats_url">
+           {{scope.row.stats}}
+diff --git a/scrapydweb/templates/scrapydweb/include_reports_template_table.html b/scrapydweb/templates/scrapydweb/include_reports_template_table.html
+index ef187cf..3cb776e 100644
+--- a/scrapydweb/templates/scrapydweb/include_reports_template_table.html
++++ b/scrapydweb/templates/scrapydweb/include_reports_template_table.html
+@@ -1,9 +1,9 @@
+-    <el-table-column prop="pages" label="Pages" fixed sortable align="center" width="80">
++    <el-table-column prop="pages" label="Pages" sortable align="center" width="80">
+       <template slot-scope="scope">
+         <p :class="scope.row.pages_class">{{scope.row.pages}}</p>
+       </template>
+     </el-table-column>
+-    <el-table-column prop="items" label="Items" fixed sortable align="center" width="80">
++    <el-table-column prop="items" label="Items" sortable align="center" width="80">
+       <template slot-scope="scope">
+         <p :class="scope.row.items_class">{{scope.row.items}}</p>
+       </template>
+diff --git a/scrapydweb/templates/scrapydweb/jobs.html b/scrapydweb/templates/scrapydweb/jobs.html
+index 0f1af0f..455c74b 100644
+--- a/scrapydweb/templates/scrapydweb/jobs.html
++++ b/scrapydweb/templates/scrapydweb/jobs.html
+@@ -58,22 +58,22 @@
+     <!-- / — / medium / small / mini -->
+     <!-- :default-sort="{prop: 'runtime', order: 'descending'}" -->
+ 
+-    <el-table-column prop="index" label="Index" fixed sortable align="center" width="70"></el-table-column>
++    <el-table-column prop="index" label="Index" sortable align="center" width="70"></el-table-column>
+     <!-- 'abcdefghi0abcdefghi0' -->
+-    <el-table-column prop="project" label="Project" fixed sortable show-overflow-tooltip align="center" width="150">
++    <el-table-column prop="project" label="Project" sortable show-overflow-tooltip align="center" width="150">
+       <template slot-scope="scope"><span :style="{ color: scope.row.pending_color }">{{scope.row.project}}</span></template>
+     </el-table-column>
+-    <el-table-column prop="spider" label="Spider" fixed sortable show-overflow-tooltip align="center" width="150">
++    <el-table-column prop="spider" label="Spider" sortable show-overflow-tooltip align="center" width="150">
+       <template slot-scope="scope"><span :style="{ color: scope.row.pending_color }">{{scope.row.spider}}</span></template>
+     </el-table-column>
+     <!-- 'task_123456_2019-01-01T00_00_01' -->
+-    <el-table-column prop="job" label="Job" fixed sortable show-overflow-tooltip :sort-method="sortJobWithTask" :sort-orders="sortOrders" align="center" width="215">
++    <el-table-column prop="job" label="Job" sortable show-overflow-tooltip :sort-method="sortJobWithTask" :sort-orders="sortOrders" align="center" width="215">
+       <template slot-scope="scope"><span :style="{ color: scope.row.pending_color }">{{scope.row.job}}</span></template>
+     </el-table-column>
+-    <el-table-column prop="pages" label="Pages" fixed sortable :sort-method="sortPages" :sort-orders="sortOrders" align="center" width="80">
++    <el-table-column prop="pages" label="Pages" sortable :sort-method="sortPages" :sort-orders="sortOrders" align="center" width="80">
+       <template slot-scope="scope"><span :class="scope.row.pages_class">{{scope.row.pages}}</span></template>
+     </el-table-column>
+-    <el-table-column prop="items" label="Items" fixed sortable :sort-method="sortItems" :sort-orders="sortOrders" align="center" width="80">
++    <el-table-column prop="items" label="Items" sortable :sort-method="sortItems" :sort-orders="sortOrders" align="center" width="80">
+       <template slot-scope="scope"><span :class="scope.row.items_class">{{scope.row.items}}</span></template>
+     </el-table-column>
+ 
+diff --git a/scrapydweb/templates/scrapydweb/node_reports.html b/scrapydweb/templates/scrapydweb/node_reports.html
+index de2f6f8..8a164e2 100644
+--- a/scrapydweb/templates/scrapydweb/node_reports.html
++++ b/scrapydweb/templates/scrapydweb/node_reports.html
+@@ -40,13 +40,13 @@
+     {% endif %}
+   >
+ 
+-    <el-table-column prop="index" label="Index" fixed sortable :sort-method="sortIndexFinish" :sort-orders="sortOrders" align="center" width="70">
++    <el-table-column prop="index" label="Index" sortable :sort-method="sortIndexFinish" :sort-orders="sortOrders" align="center" width="70">
+       <template slot-scope="scope">
+         <p style="display: none;">{{scope.row.index0}} </p>
+         <p>{{scope.row.index}}</p>
+       </template>
+     </el-table-column>
+-    <el-table-column prop="stats" label="Stats" fixed sortable :sort-method="sortStatus" align="center" width="{% if SCRAPYD_SERVERS_AMOUNT > 1 %}120{% else %}100{% endif %}">
++    <el-table-column prop="stats" label="Stats" sortable :sort-method="sortStatus" align="center" width="{% if SCRAPYD_SERVERS_AMOUNT > 1 %}120{% else %}100{% endif %}">
+       <template slot-scope="scope">
+         <em :class="scope.row.loading_class"  v-bind:style="{display: scope.row.stats_loading_display}">{{scope.row.loading}}</em>
+         {% if SCRAPYD_SERVERS_AMOUNT > 1 %}
+@@ -56,7 +56,7 @@
+       </template>
+     </el-table-column>
+ 
+-    <el-table-column prop="spider" label="Spider" fixed sortable align="center" width="150" show-overflow-tooltip></el-table-column>
++    <el-table-column prop="spider" label="Spider" sortable align="center" width="150" show-overflow-tooltip></el-table-column>
+     <el-table-column prop="start" label="Start" sortable align="center" width="145"></el-table-column>
+     <el-table-column prop="runtime" label="Runtime" sortable :sort-method="sortRuntime" :sort-orders="sortOrders" align="center" width="125"></el-table-column>
+ 
+diff --git a/scrapydweb/templates/scrapydweb/servers.html b/scrapydweb/templates/scrapydweb/servers.html
+index ba94503..99c7b21 100644
+--- a/scrapydweb/templates/scrapydweb/servers.html
++++ b/scrapydweb/templates/scrapydweb/servers.html
+@@ -230,10 +230,10 @@
+     {% endif %}
+   >
+ 
+-    <el-table-column type="selection" align="center" :reserve-selection="true" fixed></el-table-column>
+-    <el-table-column prop="index" label="Node" sortable width="70" align="center" fixed></el-table-column>
+-    <el-table-column prop="selected" label="Selected" sortable width="90" align="center" fixed></el-table-column>
+-    <el-table-column prop="group" label="Group" sortable width="120" align="center" show-overflow-tooltip fixed></el-table-column>
++    <el-table-column type="selection" align="center" :reserve-selection="true"></el-table-column>
++    <el-table-column prop="index" label="Node" sortable width="70" align="center"></el-table-column>
++    <el-table-column prop="selected" label="Selected" sortable width="90" align="center"></el-table-column>
++    <el-table-column prop="group" label="Group" sortable width="120" align="center" show-overflow-tooltip></el-table-column>
+     <el-table-column prop="jobs" label="Scrapyd server" sortable width="200" align="left" show-overflow-tooltip
+       header-align="center" :sort-method="sortScrapydServer" fixed>
+       <template slot-scope="scope">
+@@ -248,7 +248,7 @@
+         </a>
+       </template>
+     </el-table-column>
+-    <el-table-column prop="node_name" label="Hostname" sortable width="120" align="center" show-overflow-tooltip :formatter="formatter" fixed></el-table-column>
++    <el-table-column prop="node_name" label="Hostname" sortable width="120" align="center" show-overflow-tooltip :formatter="formatter"></el-table-column>
+ 
+     <el-table-column prop="pending" label="Pending" sortable width="85" align="center" :sort-method="sortPending" v-if="showDaemonStatus">
+         <template slot-scope="scope">
+diff --git a/scrapydweb/templates/scrapydweb/spider_logs.html b/scrapydweb/templates/scrapydweb/spider_logs.html
+new file mode 100644
+index 0000000..77b9cb4
+--- /dev/null
++++ b/scrapydweb/templates/scrapydweb/spider_logs.html
+@@ -0,0 +1,89 @@
++{% extends 'base.html' %}
++
++{% block title %}{{ title }}{% endblock %}
++
++{% block head %}
++  <style>
++    .spider-logs h3 {margin: 24px 0 8px;}
++    .spider-logs table {border-collapse: collapse; width: 100%; font-size: 14px;}
++    .spider-logs th, .spider-logs td {border-bottom: 1px solid #ebeef5; padding: 8px 10px; text-align: left;}
++    .spider-logs th {color: #909399; font-weight: 500;}
++    .spider-logs td:last-child {white-space: nowrap;}
++    .spider-logs td.job {font-family: monospace; font-size: 12px; color: #606266;}
++    .spider-logs a.btn {display: inline-block; padding: 2px 8px; margin-right: 4px; border-radius: 3px;
++                        color: #fff; background: #409EFF; font-size: 12px;}
++    .spider-logs a.btn.stats {background: #67C23A;}
++    .spider-logs a.btn.raw {background: #909399;}
++    .spider-logs .empty {color: #909399;}
++    .spider-logs .errors {color: #F56C6C;}
++    .spider-logs .search input {font-size: 16px; padding: 6px 10px; width: 320px;}
++    .spider-logs .search button {font-size: 16px; padding: 6px 14px;}
++  </style>
++{% endblock %}
++
++{% macro jobs_table(rows, time_label, time_key) %}
++  <table>
++    <tr>
++      <th>Node</th><th>Project</th><th>Job</th><th>Start</th>{% if time_key %}<th>{{ time_label }}</th>{% endif %}<th>Logs</th>
++    </tr>
++    {% for row in rows %}
++    <tr>
++      <td><a href="{{ row.url_jobs }}" title="{{ row.server }}">{{ row.node }}. {{ row.server }}{% if row.group %} ({{ row.group }}){% endif %}</a></td>
++      <td>{{ row.project }}</td>
++      <td class="job">{{ row.job }}</td>
++      <td>{{ row.start_time }}</td>
++      {% if time_key %}<td>{{ row[time_key] }}</td>{% endif %}
++      <td>
++        <a class="btn" href="{{ row.url_utf8 }}" target="_blank">Log</a>
++        <a class="btn stats" href="{{ row.url_stats }}" target="_blank">Stats</a>
++        <a class="btn raw" href="{{ row.url_raw }}" target="_blank">Raw</a>
++      </td>
++    </tr>
++    {% endfor %}
++  </table>
++{% endmacro %}
++
++{% block body %}
++<div class="spider-logs">
++  <h2>Spider Logs Search</h2>
++  <p class="empty">Running job and last finished jobs of a spider on all {{ SCRAPYD_SERVERS_AMOUNT }} nodes.</p>
++  <form class="search" method="get" action="{{ url_for('spiderlogs', node=node) }}">
++    <input type="text" name="spider" value="{{ spider }}" placeholder="spider name, e.g. darty_fr" autofocus>
++    <button type="submit">Find</button>
++  </form>
++
++{% if spider %}
++  {% if errors %}
++  <div class="errors">
++    <h3>Unreachable nodes</h3>
++    {% for error in errors %}
++    <div>{{ error.node }}. {{ error.server }}: {{ error.message }}</div>
++    {% endfor %}
++  </div>
++  {% endif %}
++
++  <h3>Running</h3>
++  {% if running %}{{ jobs_table(running, '', '') }}{% else %}<p class="empty">{{ spider }} is not running on any node.</p>{% endif %}
++
++  {% if pending %}
++  <h3>Pending</h3>
++  {{ jobs_table(pending, '', '') }}
++  {% endif %}
++
++  <h3>Last finished</h3>
++  {% if last_finished %}{{ jobs_table(last_finished, 'Finish', 'end_time') }}{% else %}<p class="empty">No finished job of {{ spider }} on any node.</p>{% endif %}
++
++  {% if older_finished %}
++  <h3>Earlier finished</h3>
++  {{ jobs_table(older_finished, 'Finish', 'end_time') }}
++  {% endif %}
++
++  {% if not running and not pending and not last_finished and other_spiders %}
++  <h3>Did you mean</h3>
++  {% for name in other_spiders %}
++    <a href="{{ url_for('spiderlogs', node=node, spider=name) }}">{{ name }}</a>{% if not loop.last %}, {% endif %}
++  {% endfor %}
++  {% endif %}
++{% endif %}
++</div>
++{% endblock %}
+diff --git a/scrapydweb/templates/scrapydweb/tasks.html b/scrapydweb/templates/scrapydweb/tasks.html
+index 3a9ac82..9d8308e 100644
+--- a/scrapydweb/templates/scrapydweb/tasks.html
++++ b/scrapydweb/templates/scrapydweb/tasks.html
+@@ -70,7 +70,7 @@ window.onload = function(){
+     <!-- default-sort would cause background color of the buttons flash once -->
+     <!-- :default-sort="{prop: 'status', order: 'descending'}" -->
+ 
+-    <el-table-column type="expand" fixed>
++    <el-table-column type="expand">
+       <template slot-scope="props">
+         <el-form label-position="left" inline class="demo-table-expand">
+           <el-form-item label="create_time"><span>{{props.row.create_time}}</span></el-form-item>
+@@ -112,12 +112,12 @@ window.onload = function(){
+       </template>
+     </el-table-column>
+ 
+-    <el-table-column prop="id" label="Task #" fixed sortable align="center" width="75"></el-table-column>
+-    <el-table-column prop="name" label="Name" fixed sortable show-overflow-tooltip align="center" width="100"></el-table-column>
+-    <el-table-column prop="project" label="Project" fixed sortable show-overflow-tooltip align="center" width="150"></el-table-column>
+-    <el-table-column prop="spider" label="Spider" fixed sortable show-overflow-tooltip align="center" width="150"></el-table-column>
++    <el-table-column prop="id" label="Task #" sortable align="center" width="75"></el-table-column>
++    <el-table-column prop="name" label="Name" sortable show-overflow-tooltip align="center" width="100"></el-table-column>
++    <el-table-column prop="project" label="Project" sortable show-overflow-tooltip align="center" width="150"></el-table-column>
++    <el-table-column prop="spider" label="Spider" sortable show-overflow-tooltip align="center" width="150"></el-table-column>
+     <!-- default-sort would cause background color of the buttons flash once -->
+-    <el-table-column prop="status" label="Status" fixed sortable :sort-orders="sortOrders" align="center" :sort-by=['status','id'] width="85">
++    <el-table-column prop="status" label="Status" sortable :sort-orders="sortOrders" align="center" :sort-by=['status','id'] width="85">
+       <template slot-scope="scope">
+         <label :title="scope.row.status_label">
+           <a :class="scope.row.status_class" @click="handleStatusClick(scope.row.url_status)">{{scope.row.status}}</a>
+diff --git a/scrapydweb/views/baseview.py b/scrapydweb/views/baseview.py
+index d94e3c2..abd3e79 100644
+--- a/scrapydweb/views/baseview.py
++++ b/scrapydweb/views/baseview.py
+@@ -374,6 +374,7 @@ class BaseView(View):
+             g.url_menu_schedule = url_for('schedule', node=self.node)
+             g.url_menu_projects = url_for('projects', node=self.node)
+             g.url_menu_logs = url_for('logs', node=self.node)
++            g.url_menu_spiderlogs = url_for('spiderlogs', node=self.node)
+             g.url_menu_items = url_for('items', node=self.node)
+             g.url_menu_sendtext = url_for('sendtext', node=self.node)
+             g.url_menu_parse = url_for('parse.upload', node=self.node)
+diff --git a/scrapydweb/views/files/spider_logs.py b/scrapydweb/views/files/spider_logs.py
+new file mode 100644
+index 0000000..05c7071
+--- /dev/null
++++ b/scrapydweb/views/files/spider_logs.py
+@@ -0,0 +1,132 @@
++# coding: utf-8
++"""Find the logs of a spider on all Scrapyd nodes.
++
++A load balancer moves jobs between nodes, so the job of a given spider may be running on one node
++while its previous run finished on another. This view asks every node for its jobs and returns
++the running jobs of the spider plus its most recently finished ones, with links to their logs.
++
++Scrapyd keeps only its last `finished_to_keep` jobs in memory and forgets them on restart, so finished
++jobs are also read from the jobs tables of ScrapydWeb's own database (filled by the Jobs page snapshots).
++"""
++from concurrent.futures import ThreadPoolExecutor
++
++from flask import render_template, request, url_for
++from sqlalchemy import func
++
++from ...vars import jobs_table_map
++from ..dashboard.jobs import STATUS_FINISHED
++from ..baseview import BaseView
++
++
++class SpiderLogsView(BaseView):
++    methods = ['GET']
++
++    FINISHED_TO_SHOW = 5
++
++    def __init__(self):
++        super(SpiderLogsView, self).__init__()
++        self.spider = request.args.get('spider', '').strip()
++        self.template = 'scrapydweb/spider_logs.html'
++
++    def dispatch_request(self, **kwargs):
++        running, pending, finished, errors, other_spiders = [], [], [], [], set()
++        if self.spider:
++            with ThreadPoolExecutor(max_workers=min(16, self.SCRAPYD_SERVERS_AMOUNT)) as executor:
++                results = executor.map(self.fetch_node_jobs, range(1, self.SCRAPYD_SERVERS_AMOUNT + 1))
++            for node, jobs, node_errors in results:
++                errors.extend(node_errors)
++                for job in jobs:
++                    if job['spider'].lower() != self.spider.lower():
++                        if self.spider.lower() in job['spider'].lower():
++                            other_spiders.add(job['spider'])
++                        continue
++                    row = self.make_row(node, job)
++                    {'running': running, 'pending': pending, 'finished': finished}[job['state']].append(row)
++            seen = set((row['node'], row['project'], row['job']) for row in running + pending + finished)
++            for row in self.query_finished_from_db():
++                if (row['node'], row['project'], row['job']) not in seen:
++                    finished.append(row)
++
++        running.sort(key=lambda row: row['start_time'], reverse=True)
++        finished.sort(key=lambda row: row['end_time'], reverse=True)
++        kwargs = dict(
++            node=self.node,
++            title='spider logs search',
++            spider=self.spider,
++            running=running,
++            pending=pending,
++            last_finished=finished[:1],
++            older_finished=finished[1:self.FINISHED_TO_SHOW],
++            errors=errors,
++            other_spiders=sorted(other_spiders),
++        )
++        return render_template(self.template, **kwargs)
++
++    def query_finished_from_db(self):
++        """Finished jobs of the spider recorded by ScrapydWeb's Jobs snapshots, newest first per node."""
++        rows = []
++        for node in range(1, self.SCRAPYD_SERVERS_AMOUNT + 1):
++            Job = jobs_table_map.get(node)
++            if Job is None:
++                continue
++            try:
++                records = (Job.query
++                           .filter(func.lower(Job.spider) == self.spider.lower(), Job.status == STATUS_FINISHED)
++                           .order_by(Job.finish.desc())
++                           .limit(self.FINISHED_TO_SHOW)
++                           .all())
++            except Exception as err:  # e.g. table not created yet
++                self.logger.error("Fail to query finished jobs of node %s: %s", node, err)
++                continue
++            for record in records:
++                job = dict(
++                    project=record.project,
++                    spider=record.spider,
++                    id=record.job,
++                    start_time=str(record.start or ''),
++                    end_time=str(record.finish or ''),
++                    log_url=record.href_log or '',
++                )
++                rows.append(self.make_row(node, job))
++        return rows
++
++    def fetch_node_jobs(self, node):
++        """Return (node, jobs, errors) where jobs is a list of dicts with a 'state' and 'project' key."""
++        server = self.SCRAPYD_SERVERS[node - 1]
++        auth = self.SCRAPYD_SERVERS_AUTHS[node - 1]
++        status_code, js = self.make_request('http://%s/listprojects.json' % server, auth=auth, timeout=10)
++        if status_code != 200 or js.get('status') != self.OK:
++            return node, [], [dict(node=node, server=server, message=js.get('message', status_code))]
++
++        jobs, errors = [], []
++        for project in js.get('projects', []):
++            url = 'http://%s/listjobs.json?project=%s' % (server, project)
++            status_code, js_jobs = self.make_request(url, auth=auth, timeout=10)
++            if status_code != 200 or js_jobs.get('status') != self.OK:
++                errors.append(dict(node=node, server=server, message=js_jobs.get('message', status_code)))
++                continue
++            for state in ('running', 'pending', 'finished'):
++                for job in js_jobs.get(state, []):
++                    jobs.append(dict(job, state=state, project=project))
++        return node, jobs, errors
++
++    def make_row(self, node, job):
++        server = self.SCRAPYD_SERVERS[node - 1]
++        public_url = self.SCRAPYD_SERVERS_PUBLIC_URLS[node - 1] or 'http://%s' % server
++        log_url = job.get('log_url') or '/logs/%s/%s/%s.log' % (job['project'], job['spider'], job['id'])
++        return dict(
++            node=node,
++            server=server,
++            group=self.SCRAPYD_SERVERS_GROUPS[node - 1] if len(self.SCRAPYD_SERVERS_GROUPS) >= node else '',
++            project=job['project'],
++            spider=job['spider'],
++            job=job['id'],
++            start_time=(job.get('start_time') or '')[:19],
++            end_time=(job.get('end_time') or '')[:19],
++            url_utf8=url_for('log', node=node, opt='utf8', project=job['project'],
++                             spider=job['spider'], job=job['id']),
++            url_stats=url_for('log', node=node, opt='stats', project=job['project'],
++                              spider=job['spider'], job=job['id']),
++            url_raw=public_url + log_url,
++            url_jobs=url_for('jobs', node=node),
++        )

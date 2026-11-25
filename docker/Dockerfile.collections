@@ -7,6 +7,11 @@ COPY docker/collections-runtime.patch /tmp/collections-runtime.patch
 RUN git apply --check --ignore-space-change /tmp/collections-runtime.patch \
     && git apply --ignore-space-change /tmp/collections-runtime.patch \
     && rm /tmp/collections-runtime.patch
+# UI: spider logs search across all nodes, Ctrl+F-friendly tables (diff against scrapydweb 1.6.0).
+COPY docker/spider-logs-runtime.patch /tmp/spider-logs-runtime.patch
+RUN git apply --check --ignore-space-change /tmp/spider-logs-runtime.patch \
+    && git apply --ignore-space-change /tmp/spider-logs-runtime.patch \
+    && rm /tmp/spider-logs-runtime.patch
 COPY scrapydweb/collections_api.py scrapydweb/collection_progress.py ./scrapydweb/
 RUN python -m compileall -q scrapydweb
 WORKDIR /app
