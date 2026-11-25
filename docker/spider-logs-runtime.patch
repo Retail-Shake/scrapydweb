@@ -64,7 +64,7 @@ index ef187cf..3cb776e 100644
          <p :class="scope.row.items_class">{{scope.row.items}}</p>
        </template>
 diff --git a/scrapydweb/templates/scrapydweb/jobs.html b/scrapydweb/templates/scrapydweb/jobs.html
-index 0f1af0f..56f97f8 100644
+index 0f1af0f..455c74b 100644
 --- a/scrapydweb/templates/scrapydweb/jobs.html
 +++ b/scrapydweb/templates/scrapydweb/jobs.html
 @@ -58,22 +58,22 @@
@@ -96,36 +96,6 @@ index 0f1af0f..56f97f8 100644
        <template slot-scope="scope"><span :class="scope.row.items_class">{{scope.row.items}}</span></template>
      </el-table-column>
  
-@@ -320,11 +320,7 @@ var Main = {
-               my$('#logparser_stats').style.display = 'block';  // flash in base.html
-               my$('#logparser_stats').innerText = "LogParser v" + obj.logparser_version + ", last updated at " + obj.last_update_time + ", {{ url_liststats_source }}";
-               my$('#logparser_last_update').innerText = "by LogParser: " + Math.ceil(Date.now() / 1000 - obj.last_update_timestamp) + " secs ago";
--              setInterval(function() {
--                var now_timestamp = Date.now() / 1000;
--                var seconds = Math.ceil(Date.now() / 1000 - obj.last_update_timestamp);
--                my$('#logparser_last_update').innerHTML = "by LogParser: " + "<span style='color: red;'>" + seconds + "</span> secs ago";
--              }, 1000);
-+              // No per-second countdown: rewriting the DOM every second resets the browser's find (Ctrl+F).
- 
-               // Update Jobs database
-               var r = new XMLHttpRequest
-diff --git a/scrapydweb/templates/scrapydweb/jobs_classic.html b/scrapydweb/templates/scrapydweb/jobs_classic.html
-index 8cb854e..4cc7c9c 100644
---- a/scrapydweb/templates/scrapydweb/jobs_classic.html
-+++ b/scrapydweb/templates/scrapydweb/jobs_classic.html
-@@ -264,11 +264,7 @@ window.onload = function() {
-           my$('#logparser_stats').style.display = 'block';  // flash in base.html
-           my$('#logparser_stats').innerText = "LogParser v" + obj.logparser_version + ", last updated at " + obj.last_update_time + ", {{ url_liststats_source }}";
-           my$('#logparser_last_update').innerText = "by LogParser: " + Math.ceil(Date.now() / 1000 - obj.last_update_timestamp) + " secs ago";
--          setInterval(function() {
--            var now_timestamp = Date.now() / 1000;
--            var seconds = Math.ceil(Date.now() / 1000 - obj.last_update_timestamp);
--            my$('#logparser_last_update').innerHTML = "by LogParser: " + "<span style='color: red;'>" + seconds + "</span> secs ago";
--          }, 1000);
-+          // No per-second countdown: rewriting the DOM every second resets the browser's find (Ctrl+F).
- 
-           // Update Jobs database
-           var r = new XMLHttpRequest();
 diff --git a/scrapydweb/templates/scrapydweb/node_reports.html b/scrapydweb/templates/scrapydweb/node_reports.html
 index de2f6f8..8a164e2 100644
 --- a/scrapydweb/templates/scrapydweb/node_reports.html
